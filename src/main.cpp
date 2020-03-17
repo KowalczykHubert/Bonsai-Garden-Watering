@@ -10,10 +10,10 @@
 
 //#define SEALEVELPRESSURE_HPA (1013.25)
 Adafruit_BME280 bme; // I2C Create an object of Adafruit_BME280 class
-float t_bme;         // Declare the temperature variables (bme sensor)
-float h_bme;
-float p_bme;
-//float alt_bme;
+float t_bme;         // Declare the temperature variable (bme sensor)
+float h_bme;         // Declare the humidity variable (bme sensor)
+float p_bme;         // Declare the pressure variable (bme sensor)
+//float alt_bme;      // Declare the altitude variable (bme sensor)
 
 // MOBILE APP CONFIG
 BlynkTimer timer;       // Create an object of BlynkTimer class
@@ -32,20 +32,20 @@ const int waterPumpPin = 23;       // water pump switch Pin
 const int waterLevelInputPin = 34; // water tank (level) pin
 const int sensorPin = 35;          // analog sensor input pin
 
-const byte valvePins[] = {15, 2, 4, 16, 17, 5, 18, 19};              // switching on/off valves
-const byte soilPins[] = {13, 12, 14, 27, 26, 25, 33, 32};            // switching on/off sensors
+const byte valvePins[] = {15, 2, 4, 16, 17, 5, 18, 19};              // pins for turning valves on and off
+const byte soilPins[] = {13, 12, 14, 27, 26, 25, 33, 32};            // pins for turning soil sensors on and off
 int airValue[] = {2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700};   // soil moisture sensors calibration (to be determined experimentally)
 int waterValue[] = {1200, 1200, 1200, 1200, 1200, 1200, 1200, 1200}; // soil moisture sensors calibration (to be determined experimentally)
 
-int sectionToWatering[sizeof(soilPins)]; //
-int sS[sizeof(soilPins)];
-int counterToWatering;
+int sectionToWatering[sizeof(soilPins)];              // Array of valve numbers that require opening and watering
+int sS[sizeof(soilPins)];                             // Array of measured humidity in all sections
+int counterToWatering;                                // Variable for the number of opened valves during watering
 
-int sensorState; // soil moisture measurement variable (sensorPin)
+int sensorState;                    // soil moisture measurement variable (sensorPin)
 
-#define numOfMeasurements 1
-#define measDelay 100
-int h_cptv_meas[numOfMeasurements]; // array of measurements
+#define numOfMeasurements 1         // Number of measurements in one loop by secion
+#define measDelay 100               // delay between measurements in one section
+int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
 int seconds = 30;         // Timer interval in seconds
 int minHumidity = 75;     // [%] minimal soil humidity when the pump starts
@@ -81,7 +81,7 @@ void checkPlants()
 
     if (sS[i] < minHumidity)                        // check if plants should be watered on the i-th sensor
     {
-      sectionToWatering[counterToWatering] = i;     // write to the array the section number requiring watering
+      sectionToWatering[counterToWatering] = i;     // write to the array the section number that requires watering
       counterToWatering += 1;                       // increment the variable of number watering in the next step
     }
 
@@ -109,14 +109,14 @@ void checkPlants()
     Blynk.notify("The water tank is EMPTY!");     // Send notofication to mobile app
   }
   //     ...::: BME280 :::...
-  t_bme = bme.readTemperature();
-  h_bme = bme.readPressure();
-  p_bme = (bme.readPressure() / 100.0F);
-  //float Alt = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  t_bme = bme.readTemperature();                  // Temperature measurement
+  h_bme = bme.readHumidity();                     // Air Humidity measurement
+  p_bme = (bme.readPressure() / 100.0F);          // Pressure measurement
+  //float Alt = bme.readAltitude(SEALEVELPRESSURE_HPA); //Altitude measurement
 
-  //Blynk.virtualWrite(V8, t_bme);
-  //Blynk.virtualWrite(V9, h_bme);
-  //Blynk.virtualWrite(V10, p_bme);
+  //Blynk.virtualWrite(V8, t_bme);                // Send temperature to mobile app
+  //Blynk.virtualWrite(V9, h_bme);                // Send humidity to mobile app
+  //Blynk.virtualWrite(V10, p_bme);               // Send pressure to mobile app
 
   Serial.println();
   Serial.println(".......BME280......");
@@ -212,7 +212,7 @@ void setup()
   pinMode(sensorPin, INPUT);     // set up analog sensor pin
   Blynk.begin(auth, ssid, pass); // set up connection to internet
 
-  bme.begin(0x76);
+  bme.begin(0x76);              // set up bme sensor
   timer.setInterval(seconds * 1000L, checkPlants); // Set up interwal checkPlants function call
   checkPlants();                                   // Call function at start
 }
