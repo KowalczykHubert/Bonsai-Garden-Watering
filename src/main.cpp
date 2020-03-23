@@ -1,19 +1,21 @@
 #define BLYNK_PRINT Serial
 
-#include <ESP_WiFiManager.h>
-#include <Arduino.h>
+//#include <ESP_WiFiManager.h>
+//#include <Arduino.h>
 #include <Credentials.h>
-#include <Wire.h>
 #include <BlynkSimpleEsp32.h>
-#include <Adafruit_BME280.h>
-#include <Adafruit_Sensor.h>
+//#include <Wire.h>
+//#include <Adafruit_BME280.h>
+//#include <Adafruit_Sensor.h>
 
+/*
 //#define SEALEVELPRESSURE_HPA (1013.25)
 Adafruit_BME280 bme; // I2C Create an object of Adafruit_BME280 class
 float t_bme;         // Declare the temperature variable (bme sensor)
 float h_bme;         // Declare the humidity variable (bme sensor)
 float p_bme;         // Declare the pressure variable (bme sensor)
 //float alt_bme;      // Declare the altitude variable (bme sensor)
+*/
 
 // MOBILE APP CONFIG
 BlynkTimer timer;       // Create an object of BlynkTimer class
@@ -28,30 +30,30 @@ const int pumpChannel = 0;
 const int resolution = 8;
 */
 
-const int waterPumpPin = 23;       // water pump switch Pin
-const int waterLevelInputPin = 34; // water tank (level) pin
-const int sensorPin = 35;          // analog sensor input pin
+const byte waterPumpPin = 23;       // water pump switch Pin
+const byte waterLevelInputPin = 34; // water tank (level) pin
+const byte sensorPin = 35;          // analog sensor input pin
 
 const byte valvePins[] = {15, 2, 4, 16, 17, 5, 18, 19};              // pins for turning valves on and off
 const byte soilPins[] = {13, 12, 14, 27, 26, 25, 33, 32};            // pins for turning soil sensors on and off
 int airValue[] = {2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700};   // soil moisture sensors calibration (to be determined experimentally)
 int waterValue[] = {1200, 1200, 1200, 1200, 1200, 1200, 1200, 1200}; // soil moisture sensors calibration (to be determined experimentally)
 
-int sectionToWatering[sizeof(soilPins)];              // Array of valve numbers that require opening and watering
-int sS[sizeof(soilPins)];                             // Array of measured humidity in all sections
-int counterToWatering;                                // Variable for the number of opened valves during watering
+byte sectionToWatering[sizeof(soilPins)];              // Array of valve numbers that require opening and watering
+byte sS[sizeof(soilPins)];                             // Array of measured humidity in all sections
+byte counterToWatering;                                // Variable for the number of opened valves during watering
 
 int sensorState;                    // soil moisture measurement variable (sensorPin)
 
-#define numOfMeasurements 1         // Number of measurements in one loop by secion
-#define measDelay 100               // delay between measurements in one section
+#define numOfMeasurements 3         // Number of measurements in one loop by secion
+#define measDelay 1000               // delay between measurements in one section
 int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
 int seconds = 30;         // Timer interval in seconds
-int minHumidity = 75;     // [%] minimal soil humidity when the pump starts
-int wateringTime = 2;     // [seconds] water pump running time
-int wateringLeft = 0;     // empty water tank variable
-int maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
+byte minHumidity = 75;     // [%] minimal soil humidity when the pump starts
+byte wateringTime = 2;     // [seconds] water pump running time
+byte wateringLeft = 0;     // empty water tank variable
+byte maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
 int waterTank;            // water level variable
 
 void checkPlants()
@@ -108,6 +110,7 @@ void checkPlants()
     Serial.println("The water tank is EMPTY!");
     Blynk.notify("The water tank is EMPTY!");     // Send notofication to mobile app
   }
+  /*
   //     ...::: BME280 :::...
   t_bme = bme.readTemperature();                  // Temperature measurement
   h_bme = bme.readHumidity();                     // Air Humidity measurement
@@ -134,7 +137,7 @@ void checkPlants()
   //Serial.println(" m");
   Serial.println();
   Serial.println();
-
+*/
   
   // ...::: WATERING :::...
 
@@ -212,7 +215,7 @@ void setup()
   pinMode(sensorPin, INPUT);     // set up analog sensor pin
   Blynk.begin(auth, ssid, pass); // set up connection to internet
 
-  bme.begin(0x76);              // set up bme sensor
+  //bme.begin(0x76);              // set up bme sensor
   timer.setInterval(seconds * 1000L, checkPlants); // Set up interwal checkPlants function call
   checkPlants();                                   // Call function at start
 }
