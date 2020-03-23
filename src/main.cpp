@@ -2,6 +2,8 @@
 
 //#include <ESP_WiFiManager.h>
 //#include <Arduino.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
 #include <Credentials.h>
 #include <BlynkSimpleEsp32.h>
 //#include <Wire.h>
@@ -22,6 +24,8 @@ BlynkTimer timer;       // Create an object of BlynkTimer class
 char auth[] = APIKEY;   // Auth Token in the Blynk App.
 char ssid[] = SSIDHOME; // WiFi credentials (Credentails.h)
 char pass[] = PASSHOME; // WiFi credentials (Credentails.h)
+char server[] = "blynk-cloud.com";
+int port = 8080;
 
 /*
 // setting PWM properties (dc motor speed settings)
@@ -45,16 +49,17 @@ byte counterToWatering;                                // Variable for the numbe
 
 int sensorState;                    // soil moisture measurement variable (sensorPin)
 
-#define numOfMeasurements 3         // Number of measurements in one loop by secion
-#define measDelay 1000               // delay between measurements in one section
+#define numOfMeasurements 1         // Number of measurements in one loop by secion
+#define measDelay 500               // delay between measurements in one section
 int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
-int seconds = 30;         // Timer interval in seconds
-byte minHumidity = 75;     // [%] minimal soil humidity when the pump starts
-byte wateringTime = 2;     // [seconds] water pump running time
-byte wateringLeft = 0;     // empty water tank variable
-byte maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
-int waterTank;            // water level variable
+byte reconnectTimer = 10;     // Timer interval in seconds [blynk recconection]
+int wateringTimer = 60;      // Timer interval in seconds [watering]
+byte minHumidity = 75;       // [%] minimal soil humidity when the pump starts
+byte wateringTime = 2;       // [seconds] water pump running time
+byte wateringLeft = 0;       // empty water tank variable
+byte maxWateringLeft = 15;   // how many waterings left (sensor detect low water level)
+int waterTank;               // water level variable
 
 void checkPlants()
 {
@@ -189,6 +194,20 @@ void checkPlants()
   }
 }
 
+void reconnectBlynk() {
+  if (!Blynk.connected()) {
+   WiFi.begin(ssid, pass);           // Non-blocking if no WiFi available
+    Serial.println("Lost connection");
+    if(Blynk.connect(10000)) {
+      Serial.println("Reconnected");
+    }
+    else {
+      Serial.println("Not reconnected");
+    }
+  }
+}
+
+
 void setup()
 {
   Serial.begin(9600);                            // Debug console
@@ -212,16 +231,27 @@ void setup()
     pinMode(valvePins[i], OUTPUT);
   }
 
-  pinMode(sensorPin, INPUT);     // set up analog sensor pin
-  Blynk.begin(auth, ssid, pass); // set up connection to internet
+  pinMode(sensorPin, INPUT);        // set up analog sensor pin 
+
+  WiFi.begin(ssid, pass);           // Non-blocking if no WiFi available
+  Blynk.config(auth, server, port); // Non-blocking if no WiFi available
+  Blynk.connect(10000);             // Non-blocking if no WiFi available
+  //Blynk.begin(auth, ssid, pass); // set up connection to internet - the code never run without internet connection
 
   //bme.begin(0x76);              // set up bme sensor
-  timer.setInterval(seconds * 1000L, checkPlants); // Set up interwal checkPlants function call
+  timer.setInterval(wateringTimer * 1000L, checkPlants); // Set up interwal checkPlants function call
+  timer.setInterval(reconnectTimer * 1000L, reconnectBlynk); // Set up interwal checkPlants function call
   checkPlants();                                   // Call function at start
 }
 
 void loop() // Main loop of the program
 {
-  Blynk.run(); // Run Blynk (mobile app, internet connection etc.)
+ 
   timer.run(); // Run interwal main function (checkPlants)
+  if(Blynk.connected()) { 
+    Blynk.run(); 
+    }
+
 }
+
+
