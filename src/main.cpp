@@ -24,8 +24,6 @@ BlynkTimer timer;       // Create an object of BlynkTimer class
 char auth[] = APIKEY;   // Auth Token in the Blynk App.
 char ssid[] = SSIDHOME; // WiFi credentials (Credentails.h)
 char pass[] = PASSHOME; // WiFi credentials (Credentails.h)
-char server[] = "blynk-cloud.com";
-int port = 8080;
 
 /*
 // setting PWM properties (dc motor speed settings)
@@ -234,7 +232,7 @@ void setup()
   pinMode(sensorPin, INPUT);        // set up analog sensor pin 
 
   WiFi.begin(ssid, pass);           // Non-blocking if no WiFi available
-  Blynk.config(auth, server, port); // Non-blocking if no WiFi available
+  Blynk.config(auth); // Non-blocking if no WiFi available
   Blynk.connect(10000);             // Non-blocking if no WiFi available
   //Blynk.begin(auth, ssid, pass); // set up connection to internet - the code never run without internet connection
 
