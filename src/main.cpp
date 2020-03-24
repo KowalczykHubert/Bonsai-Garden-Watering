@@ -51,13 +51,42 @@ int sensorState; // soil moisture measurement variable (sensorPin)
 #define measDelay 500               // delay between measurements in one section
 int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
-byte reconnectTimer = 10;  // Timer interval in seconds [blynk recconection]
-int wateringTimer = 60;    // Timer interval in seconds [watering]
+byte reconnectTimer = 60;  // Timer interval in seconds [blynk reconection]
+int measuringTimer = 5;    // Timer interval in minutes [watering]
 byte minHumidity = 75;     // [%] minimal soil humidity when the pump starts
 byte wateringTime = 2;     // [seconds] water pump running time
 byte wateringLeft = 0;     // empty water tank variable
 byte maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
 int waterTank;             // water level variable
+byte s = 0;
+
+void measurementInterval()
+{
+  byte previousS = s;
+  s = 0;
+for (i=0; i< sizeof(soilPins); i++)
+{
+    s += array[i];
+}
+if (previousS-s < 0 )
+{
+  measuringTimer+=10;
+}
+if (previousS-s > 0 )
+{
+  measuringTimer+=10;
+}
+
+
+if (s> 90)
+{
+  measuringTimer = 60
+}
+else if (s<90 && s>80)
+{
+  wateringTimer = 15
+}
+}
 
 void checkPlants()
 {
@@ -275,7 +304,7 @@ void setup()
   //Blynk.begin(auth, ssid, pass); // set up connection to internet - the code never run without internet connection
 
   //bme.begin(0x76);              // set up bme sensor
-  timer.setInterval(wateringTimer * 1000L, checkPlants);     // Set up interwal checkPlants function call
+  timer.setInterval(measuringTimer * 60000L, checkPlants);     // Set up interwal checkPlants function call
   timer.setInterval(reconnectTimer * 1000L, reconnectBlynk); // Set up interwal checkPlants function call
   checkPlants();                                             // Call function at start
 }
