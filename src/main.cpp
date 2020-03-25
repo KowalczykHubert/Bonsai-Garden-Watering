@@ -35,6 +35,7 @@ const int resolution = 8;
 const byte waterPumpPin = 23;       // water pump switch Pin
 const byte waterLevelInputPin = 34; // water tank (level) pin
 const byte sensorPin = 35;          // analog sensor input pin
+const byte lightPin = 39;           // analog photoresistor input pin
 
 const byte valvePins[] = {15, 2, 4, 16, 17, 5, 18, 19};              // pins for turning valves on and off
 const byte soilPins[] = {13, 12, 14, 27, 26, 25, 33, 32};            // pins for turning soil sensors on and off
@@ -58,35 +59,6 @@ byte wateringTime = 2;     // [seconds] water pump running time
 byte wateringLeft = 0;     // empty water tank variable
 byte maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
 int waterTank;             // water level variable
-byte s = 0;
-
-void measurementInterval()
-{
-  byte previousS = s;
-  s = 0;
-for (i=0; i< sizeof(soilPins); i++)
-{
-    s += array[i];
-}
-if (previousS-s < 0 )
-{
-  measuringTimer+=10;
-}
-if (previousS-s > 0 )
-{
-  measuringTimer+=10;
-}
-
-
-if (s> 90)
-{
-  measuringTimer = 60
-}
-else if (s<90 && s>80)
-{
-  wateringTimer = 15
-}
-}
 
 void checkPlants()
 {
@@ -191,51 +163,53 @@ void checkPlants()
         }
       }
       */
-
-    for (byte i = 0; i < counterToWatering; i++) // Valves to turn on as many as the number of sections to water
+    if (analogRead(lightPin) > 1000)
     {
-      Serial.print("The valve " + valvePins[sectionToWatering[i]]);
-      Serial.println(" is going to be open...");
-      digitalWrite(valvePins[sectionToWatering[i]], HIGH); // Turn on the i-th valve as many times as the number of sections to water
-      Serial.print("The soil sensor " + soilPins[sectionToWatering[i]]);
-      Serial.println(" is going to measure...");
-      digitalWrite(soilPins[sectionToWatering[i]], HIGH);
-      do
+      for (byte i = 0; i < counterToWatering; i++) // Valves to turn on as many as the number of sections to water
       {
-        byte secondsOfWatering = 0;
-        sensorState = map(analogRead(sensorPin), waterValue[sectionToWatering[i]], airValue[sectionToWatering[i]], 100, 1)
-        Serial.print("There's " + sensorState);
-        Serial.println(" % of soil humidity! Keep watering...");
-        delay(500);
-        secondOfWatering+=0.5;
-        if (secondsOfWatering == 45)
+        Serial.print("The valve " + valvePins[sectionToWatering[i]]);
+        Serial.println(" is going to be open...");
+        digitalWrite(valvePins[sectionToWatering[i]], HIGH); // Turn on the i-th valve as many times as the number of sections to water
+        Serial.print("The soil sensor " + soilPins[sectionToWatering[i]]);
+        Serial.println(" is going to measure...");
+        digitalWrite(soilPins[sectionToWatering[i]], HIGH);
+        do
         {
-          String notify1 = "Alert! There's too long watering on section:  ";
+          byte secondsOfWatering = 0;
+          sensorState = map(analogRead(sensorPin), waterValue[sectionToWatering[i]], airValue[sectionToWatering[i]], 100, 1)
+                            Serial.print("There's " + sensorState);
+          Serial.println(" % of soil humidity! Keep watering...");
+          delay(500);
+          secondOfWatering += 0.5;
+          if (secondsOfWatering == 45)
+          {
+            String notify1 = "Alert! There's too long watering on section:  ";
           String notify = notify1 + sectionToWatering[i]];
           Blynk.notify(notify);
           break;
-        }
-        else if (sensorState>=95)
-        {
-          delay(5000);
-        }
-      } while (sensorState < 95);
-      digitalWrite(valvePins[sectionToWatering[i]], LOW); // Turn off the i-th valve and go to the next valve
-      Serial.print("The valve " + valvePins[sectionToWatering[i]]);
-      Serial.println(" is closed...");
+          }
+          else if (sensorState >= 95)
+          {
+            delay(5000);
+          }
+        } while (sensorState < 95);
+        digitalWrite(valvePins[sectionToWatering[i]], LOW); // Turn off the i-th valve and go to the next valve
+        Serial.print("The valve " + valvePins[sectionToWatering[i]]);
+        Serial.println(" is closed...");
 
-      /*
-      Serial.print("The valve " + valvePins[sectionToWatering[i]]);
-      Serial.println(" is going to be open...");
-      digitalWrite(valvePins[sectionToWatering[i]], HIGH);
-      delay(1000 * wateringTime);                         // Keep the i-th valve on for wateringTime seconds
-      digitalWrite(valvePins[sectionToWatering[i]], LOW); // Turn off the i-th valve and go to the next valve
-      */
+        /*
+        Serial.print("The valve " + valvePins[sectionToWatering[i]]);
+        Serial.println(" is going to be open...");
+        digitalWrite(valvePins[sectionToWatering[i]], HIGH);
+        delay(1000 * wateringTime);                         // Keep the i-th valve on for wateringTime seconds
+        digitalWrite(valvePins[sectionToWatering[i]], LOW); // Turn off the i-th valve and go to the next valve
+        */
+      }
+
+      //ledcWrite(pumpChannel, 0);
+      digitalWrite(waterPumpPin, LOW); // When all required sections are watered then turn off the water pump
+      Serial.println("The pump has stopped working...");
     }
-
-    //ledcWrite(pumpChannel, 0);
-    digitalWrite(waterPumpPin, LOW); // When all required sections are watered then turn off the water pump
-    Serial.println("The pump has stopped working...");
   }
 
   // ...::: UPDATE WATERTANK STATUS :::...
@@ -304,7 +278,7 @@ void setup()
   //Blynk.begin(auth, ssid, pass); // set up connection to internet - the code never run without internet connection
 
   //bme.begin(0x76);              // set up bme sensor
-  timer.setInterval(measuringTimer * 60000L, checkPlants);     // Set up interwal checkPlants function call
+  timer.setInterval(measuringTimer * 60000L, checkPlants);   // Set up interwal checkPlants function call
   timer.setInterval(reconnectTimer * 1000L, reconnectBlynk); // Set up interwal checkPlants function call
   checkPlants();                                             // Call function at start
 }
