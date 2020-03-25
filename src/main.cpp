@@ -173,24 +173,26 @@ void checkPlants()
         Serial.print("The soil sensor " + soilPins[sectionToWatering[i]]);
         Serial.println(" is going to measure...");
         digitalWrite(soilPins[sectionToWatering[i]], HIGH);
+        byte secondsOfWatering = 0;
         do
         {
-          byte secondsOfWatering = 0;
           sensorState = map(analogRead(sensorPin), waterValue[sectionToWatering[i]], airValue[sectionToWatering[i]], 100, 1)
-                            Serial.print("There's " + sensorState);
+          Serial.print("I'm watering for " + secondsOfWatering);
+          Serial.print(" seconds  ");
+          Serial.print("and there's " + sensorState);
           Serial.println(" % of soil humidity! Keep watering...");
-          delay(500);
+          delay(500);                           // [seconds] interval between measurement
           secondOfWatering += 0.5;
-          if (secondsOfWatering == 45)
+          if (secondsOfWatering == 45)          // [seconds] max time of watering
           {
             String notify1 = "Alert! There's too long watering on section:  ";
-          String notify = notify1 + sectionToWatering[i]];
-          Blynk.notify(notify);
+            String notify = notify1 + sectionToWatering[i]];
+            Blynk.notify(notify);
           break;
           }
-          else if (sensorState >= 95)
+          else if (sensorState >= 95)           // [%] if soil moisture increases to 95%, keep watering for..
           {
-            delay(5000);
+            delay(5000);                        // [seconds]
           }
         } while (sensorState < 95);
         digitalWrite(valvePins[sectionToWatering[i]], LOW); // Turn off the i-th valve and go to the next valve
