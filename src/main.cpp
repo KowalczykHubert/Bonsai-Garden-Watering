@@ -15,6 +15,9 @@ OneWire oneWire(ONE_WIRE_BUS);
 // Pass our oneWire reference to Dallas Temperature.
 DallasTemperature sensors(&oneWire);
 
+uint8_t sensor1[8] = {0x28, 0xEE, 0xD5, 0x64, 0x1A, 0x16, 0x02, 0xEC};
+uint8_t sensor2[8] = {0x28, 0x61, 0x64, 0x12, 0x3C, 0x7C, 0x2F, 0x27};
+uint8_t sensor3[8] = {0x28, 0x61, 0x64, 0x12, 0x3F, 0xFD, 0x80, 0xC6};
 
 /*
 #include <Wire.h>
@@ -42,26 +45,26 @@ const int pumpChannel = 0;
 const int resolution = 8;
 */
 
-const byte waterPumpPin = 23;       // water pump switch Pin
-const byte waterLevelInputPin = 34; // water tank (level) pin
-const byte sensorPin = 35;          // analog sensor input pin
-const byte valvePins[] = {15, 2, 4, 16, 17, 5};              // pins for turning valves on and off {15, 2, 4, 16, 17, 5, 18, 19};  
-const byte soilPins[] = {13, 12, 14, 27, 26, 25};             // pins for turning soil sensors on and off {13, 12, 14, 27, 26, 25, 33, 32}; 
-const int airValue[] = {2710, 2700, 2760, 2690, 2680, 2750};            // soil moisture sensors calibration (to be determined experimentally)
-const int waterValue[] = {850, 870, 895, 830, 850, 890};          // soil moisture sensors calibration (to be determined experimentally)
+const byte waterPumpPin = 23;                                // water pump switch Pin
+const byte waterLevelInputPin = 34;                          // water tank (level) pin
+const byte sensorPin = 35;                                   // analog sensor input pin
+const byte valvePins[] = {15, 2, 4, 16, 17, 5};              // pins for turning valves on and off {15, 2, 4, 16, 17, 5, 18, 19};
+const byte soilPins[] = {13, 12, 14, 27, 26, 25};            // pins for turning soil sensors on and off {13, 12, 14, 27, 26, 25, 33, 32};
+const int airValue[] = {2710, 2700, 2760, 2690, 2680, 2750}; // soil moisture sensors calibration (to be determined experimentally)
+const int waterValue[] = {850, 870, 895, 830, 850, 890};     // soil moisture sensors calibration (to be determined experimentally)
 
 byte sectionToWatering[sizeof(soilPins)]; // Array of valve numbers that require opening and watering
-int sS[sizeof(soilPins)];                // Array of measured humidity in all sections
+int sS[sizeof(soilPins)];                 // Array of measured humidity in all sections
 byte counterToWatering;                   // Variable for the number of opened valves during watering
 
-int sensorState;                    // soil moisture measurement variable (sensorPin)
+int sensorState; // soil moisture measurement variable (sensorPin)
 
-#define numOfMeasurements 3       // Number of measurements in one loop by secion
+#define numOfMeasurements 3         // Number of measurements in one loop by secion
 #define measDelay 750               // delay between measurements in one section
 int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
 byte reconnectTimer = 60;  // Timer interval in seconds [blynk reconection]
-float mainTimer = 5;        // Timer interval in minutes [watering]
+float mainTimer = 5;       // Timer interval in minutes [watering]
 byte minHumidity = 80;     // [%] minimal soil humidity when the pump starts
 byte wateringLeft = 0;     // empty water tank variable
 byte maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
@@ -99,11 +102,32 @@ void checkWather()
 }
 */
 //--------------------------------------------------------------------------------------------------------------------------
-void temperatureMeasurement()
+void findAdressDS18B20()
 {
-  
+
+  byte i;
+  byte addr[8];
+
+  if (!oneWire.search(addr))
+  {
+    Serial.println(" No more addresses.");
+    Serial.println();
+    oneWire.reset_search();
+    delay(250);
+    return;
+  }
+  Serial.print(" ROM =");
+  for (i = 0; i < 8; i++)
+  {
+    Serial.write(' ');
+    Serial.print(addr[i], HEX);
+  }
 }
 
+//--------------------------------------------------------------------------------------------------------------------------
+void temperatureMeasurement()
+{
+}
 
 //--------------------------------------------------------------------------------------------------------------------------
 void soilMoistureMeasurement()
@@ -111,50 +135,48 @@ void soilMoistureMeasurement()
 
   // ...::: SOIL MOISTURE MEASUREMENTS :::...
   counterToWatering = 0;
-  for (byte i = 0; i < sizeof(soilPins); i++)    // Take as many measurements as there are sensors connected
+  for (byte i = 0; i < sizeof(soilPins); i++) // Take as many measurements as there are sensors connected
   {
-    digitalWrite(soilPins[i], HIGH);             // Turn on the power of the i-th sensor
-   //delay (3000);
+    digitalWrite(soilPins[i], HIGH); // Turn on the power of the i-th sensor
+                                     //delay (3000);
     sensorState = 0;
     for (byte j = 0; j < numOfMeasurements; j++) // Take as many measurements on the j-th sensor as defined in the variable
     {
-      delay(measDelay);                           // Tnterval between subsequent measurements within the i-th sensor
-      h_cptv_meas[j] = analogRead(sensorPin);     // Save the j-th measurement to array
-      sensorState += h_cptv_meas[j];              // Add the j-th measurement result to the variable
+      delay(measDelay);                       // Tnterval between subsequent measurements within the i-th sensor
+      h_cptv_meas[j] = analogRead(sensorPin); // Save the j-th measurement to array
+      sensorState += h_cptv_meas[j];          // Add the j-th measurement result to the variable
       Serial.print(h_cptv_meas[j]);
       Serial.print(" ");
     }
-    digitalWrite(soilPins[i], LOW);             // Turn off the power of the i-th sensor
-    sensorState /= numOfMeasurements;           // calculate the average of the measurements
+    digitalWrite(soilPins[i], LOW);   // Turn off the power of the i-th sensor
+    sensorState /= numOfMeasurements; // calculate the average of the measurements
     Serial.print("Average value = ");
     Serial.println(sensorState);
     sS[i] = map(sensorState, waterValue[i], airValue[i], 100, 1); // map the measurement to a range of 0 to 100
-    
+
     Serial.print("Soil humidity cptv_");
     Serial.print(i + 1);
     Serial.print(" = ");
     Serial.println(sS[i]);
     Serial.println();
-    Blynk.virtualWrite(i, sS[i]);               // Send humidity to mobile app
+    Blynk.virtualWrite(i, sS[i]); // Send humidity to mobile app
 
-    if (sS[i] < minHumidity)                    // check if plants should be watered on the i-th sensor
+    if (sS[i] < minHumidity) // check if plants should be watered on the i-th sensor
     {
       sectionToWatering[counterToWatering] = i; // write to the array the section number that requires watering
       counterToWatering += 1;                   // increment the variable of number watering in the next step
     }
-
-    
   }
 }
 //--------------------------------------------------------------------------------------------------------------------------
 void watering()
 {
   // ...::: WATER LEVEL :::...
-  waterTank = digitalRead(waterLevelInputPin);  // Check the water level sensor
-  if (waterTank == 0)                           // Water level sensor is OK
+  waterTank = digitalRead(waterLevelInputPin); // Check the water level sensor
+  if (waterTank == 0)                          // Water level sensor is OK
   {
     Serial.println("The water tank is full");
-    wateringLeft = maxWateringLeft;             // Set the max waterings when the sensor detect low water level
+    wateringLeft = maxWateringLeft; // Set the max waterings when the sensor detect low water level
     Serial.print("Watering left more than ");
     Serial.println(wateringLeft);
     Serial.println();
@@ -162,7 +184,7 @@ void watering()
   else if (waterTank == 1 && wateringLeft == 0) // Water level sensor detect low water level and there's all waterings used
   {
     Serial.println("The water tank is EMPTY!");
-    Blynk.notify("The water tank is EMPTY!");   // Send notofication to mobile app
+    Blynk.notify("The water tank is EMPTY!"); // Send notofication to mobile app
   }
   // ...::: WATERING :::...
 
@@ -183,53 +205,52 @@ void watering()
         }
       }
       */
-          for (byte i = 0; i < counterToWatering; i++) // Valves to turn on as many as the number of sections to water
+    for (byte i = 0; i < counterToWatering; i++) // Valves to turn on as many as the number of sections to water
+    {
+      Serial.print("The valve " + valvePins[sectionToWatering[i]]);
+      Serial.println(" is going to be open...");
+      digitalWrite(valvePins[sectionToWatering[i]], HIGH); // Turn on the i-th valve as many times as the number of sections to water
+      Serial.print("The soil sensor " + soilPins[sectionToWatering[i]]);
+      Serial.println(" is going to measure...");
+      digitalWrite(soilPins[sectionToWatering[i]], HIGH);
+      byte maxWateringTime = 0;
+      do
       {
-        Serial.print("The valve " + valvePins[sectionToWatering[i]]);
-        Serial.println(" is going to be open...");
-        digitalWrite(valvePins[sectionToWatering[i]], HIGH); // Turn on the i-th valve as many times as the number of sections to water
-        Serial.print("The soil sensor " + soilPins[sectionToWatering[i]]);
-        Serial.println(" is going to measure...");
-        digitalWrite(soilPins[sectionToWatering[i]], HIGH);
-        byte maxWateringTime = 0;
-        do
+        sensorState = map(analogRead(sensorPin), waterValue[sectionToWatering[i]], airValue[sectionToWatering[i]], 100, 1);
+        Serial.print("I'm watering for " + maxWateringTime);
+        Serial.print(" seconds  ");
+        Serial.print("and there's " + sensorState);
+        Serial.println(" % of soil humidity! Keep watering...");
+        delay(500); // [seconds] interval between measurement
+        maxWateringTime += 0.5;
+        if (maxWateringTime == 60) // [seconds] max time of watering
         {
-          sensorState = map(analogRead(sensorPin), waterValue[sectionToWatering[i]], airValue[sectionToWatering[i]], 100, 1);
-          Serial.print("I'm watering for " + maxWateringTime);
-          Serial.print(" seconds  ");
-          Serial.print("and there's " + sensorState);
-          Serial.println(" % of soil humidity! Keep watering...");
-          delay(500);                           // [seconds] interval between measurement
-          maxWateringTime += 0.5;
-          if (maxWateringTime == 60)          // [seconds] max time of watering
-          {
-            String notify1 = "Alert! There's too long watering on section:  ";
-            String notify = notify1 + sectionToWatering[i];
-            Blynk.notify(notify);
+          String notify1 = "Alert! There's too long watering on section:  ";
+          String notify = notify1 + sectionToWatering[i];
+          Blynk.notify(notify);
           break;
-          }
-          else if (sensorState >= 95)           // [%] if soil moisture increases to 95%, keep watering for..
-          {
-            delay(5000);                        // [seconds]
-          }
-        } while (sensorState < 95);
-        digitalWrite(valvePins[sectionToWatering[i]], LOW); // Turn off the i-th valve and go to the next valve
-        Serial.print("The valve " + valvePins[sectionToWatering[i]]);
-        Serial.println(" is closed...");
+        }
+        else if (sensorState >= 95) // [%] if soil moisture increases to 95%, keep watering for..
+        {
+          delay(5000); // [seconds]
+        }
+      } while (sensorState < 95);
+      digitalWrite(valvePins[sectionToWatering[i]], LOW); // Turn off the i-th valve and go to the next valve
+      Serial.print("The valve " + valvePins[sectionToWatering[i]]);
+      Serial.println(" is closed...");
 
-        /*
+      /*
         Serial.print("The valve " + valvePins[sectionToWatering[i]]);
         Serial.println(" is going to be open...");
         digitalWrite(valvePins[sectionToWatering[i]], HIGH);
         delay(1000 * wateringTime);                         // Keep the i-th valve on for wateringTime seconds
         digitalWrite(valvePins[sectionToWatering[i]], LOW); // Turn off the i-th valve and go to the next valve
         */
-      }
+    }
 
-      //ledcWrite(pumpChannel, 0);
-      digitalWrite(waterPumpPin, LOW); // When all required sections are watered then turn off the water pump
-      Serial.println("The pump has stopped working...");
-    
+    //ledcWrite(pumpChannel, 0);
+    digitalWrite(waterPumpPin, LOW); // When all required sections are watered then turn off the water pump
+    Serial.println("The pump has stopped working...");
   }
 
   // ...::: UPDATE WATERTANK STATUS :::...
@@ -269,8 +290,9 @@ void reconnectBlynk()
 }
 void mainProgram()
 {
-  soilMoistureMeasurement();
+  //soilMoistureMeasurement();
   //watering();
+  findAdressDS18B20();
 }
 //--------------------------------------------------------------------------------------------------------------------------
 void setup()
@@ -298,13 +320,14 @@ void setup()
 
   pinMode(sensorPin, INPUT); // set up analog sensor pin
 
+  sensors.begin();        // DS18B20s
   WiFi.begin(ssid, pass); // Non-blocking if no WiFi available
   Blynk.config(auth);     // Non-blocking if no WiFi available
   Blynk.connect(10000);   // Non-blocking if no WiFi available
   //Blynk.begin(auth, ssid, pass); // set up connection to internet - the code never run without internet connection
 
   //bme.begin(0x76);              // set up bme sensor
-  timer.setInterval(mainTimer * 60000L, mainProgram);   // Set up interwal checkPlants function call
+  timer.setInterval(mainTimer * 60000L, mainProgram);        // Set up interwal checkPlants function call
   timer.setInterval(reconnectTimer * 1000L, reconnectBlynk); // Set up interwal checkPlants function call
   mainProgram();                                             // Call function at start
 }
