@@ -1,8 +1,8 @@
 #define BLYNK_PRINT Serial
 
 //#include <Arduino.h>
-#include <WiFi.h>
-#include <WiFiClient.h>
+//#include <WiFi.h>
+//#include <WiFiClient.h>
 #include <Credentials.h>
 #include <BlynkSimpleEsp32.h>
 
