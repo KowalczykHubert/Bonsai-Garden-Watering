@@ -9,15 +9,22 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 // Data wire is plugged into pin ...
-#define ONE_WIRE_BUS 12
+#define ONE_WIRE_BUS 21
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
 // Pass our oneWire reference to Dallas Temperature.
 DallasTemperature sensors(&oneWire);
 
-uint8_t sensor1[8] = {0x28, 0xEE, 0xD5, 0x64, 0x1A, 0x16, 0x02, 0xEC};
-uint8_t sensor2[8] = {0x28, 0x61, 0x64, 0x12, 0x3C, 0x7C, 0x2F, 0x27};
-uint8_t sensor3[8] = {0x28, 0x61, 0x64, 0x12, 0x3F, 0xFD, 0x80, 0xC6};
+DeviceAddress DBsensor1 = {0x28, 0xD8, 0xB7, 0x16, 0xA8, 0x1, 0x3C, 0x5E};
+DeviceAddress DBsensor2 = {0x28, 0x5A, 0x48, 0x16, 0xA8, 0x1, 0x3C, 0x13};
+DeviceAddress DBsensor3 = {0x28, 0xF9, 0x87, 0x16, 0xA8, 0x1, 0x3C, 0x5B};
+DeviceAddress DBsensor4 = {0x28, 0x83, 0x2E, 0x16, 0xA8, 0x1, 0x3C, 0xCC};
+/*
+float t_db1;
+float t_db2;
+float t_db3;
+float t_db4;
+*/
 
 /*
 #include <Wire.h>
@@ -45,13 +52,13 @@ const int pumpChannel = 0;
 const int resolution = 8;
 */
 
-const byte waterPumpPin = 23;                                // water pump switch Pin
-const byte waterLevelInputPin = 34;                          // water tank (level) pin
-const byte sensorPin = 35;                                   // analog sensor input pin
-const byte valvePins[] = {15, 2, 4, 16, 17, 5};              // pins for turning valves on and off {15, 2, 4, 16, 17, 5, 18, 19};
-const byte soilPins[] = {13, 12, 14, 27, 26, 25};            // pins for turning soil sensors on and off {13, 12, 14, 27, 26, 25, 33, 32};
-const int airValue[] = {2710, 2700, 2760, 2690, 2680, 2750}; // soil moisture sensors calibration (to be determined experimentally)
-const int waterValue[] = {850, 870, 895, 830, 850, 890};     // soil moisture sensors calibration (to be determined experimentally)
+const byte waterPumpPin = 23;                                            // water pump switch Pin
+const byte waterLevelInputPin = 34;                                      // water tank (level) pin
+const byte sensorPin = 35;                                               // analog sensor input pin
+const byte valvePins[] = {15, 2, 4, 16, 17, 5, 18, 19};                  // pins for turning valves on and off {15, 2, 4, 16, 17, 5, 18, 19};
+const byte soilPins[] = {13, 12, 14, 27, 26, 25, 33, 32};                // pins for turning soil sensors on and off {13, 12, 14, 27, 26, 25, 33, 32};
+const int airValue[] = {2710, 2700, 2760, 2690, 2680, 2750, 2700, 2700}; // soil moisture sensors calibration (to be determined experimentally)
+const int waterValue[] = {850, 870, 890, 830, 850, 890, 870, 870};       // soil moisture sensors calibration (to be determined experimentally)
 
 byte sectionToWatering[sizeof(soilPins)]; // Array of valve numbers that require opening and watering
 int sS[sizeof(soilPins)];                 // Array of measured humidity in all sections
@@ -59,13 +66,13 @@ byte counterToWatering;                   // Variable for the number of opened v
 
 int sensorState; // soil moisture measurement variable (sensorPin)
 
-#define numOfMeasurements 3         // Number of measurements in one loop by secion
-#define measDelay 750               // delay between measurements in one section
+#define numOfMeasurements 2         // Number of measurements in one loop by secion
+#define measDelay 1500               // delay between measurements in one section
 int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
 byte reconnectTimer = 60;  // Timer interval in seconds [blynk reconection]
 float mainTimer = 5;       // Timer interval in minutes [watering]
-byte minHumidity = 80;     // [%] minimal soil humidity when the pump starts
+byte minHumidity = 75;     // [%] minimal soil humidity when the pump starts
 byte wateringLeft = 0;     // empty water tank variable
 byte maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
 int waterTank;             // water level variable
@@ -101,33 +108,6 @@ void checkWather()
   Serial.println();
 }
 */
-//--------------------------------------------------------------------------------------------------------------------------
-void findAdressDS18B20()
-{
-
-  byte i;
-  byte addr[8];
-
-  if (!oneWire.search(addr))
-  {
-    Serial.println(" No more addresses.");
-    Serial.println();
-    oneWire.reset_search();
-    delay(250);
-    return;
-  }
-  Serial.print(" ROM =");
-  for (i = 0; i < 8; i++)
-  {
-    Serial.write(' ');
-    Serial.print(addr[i], HEX);
-  }
-}
-
-//--------------------------------------------------------------------------------------------------------------------------
-void temperatureMeasurement()
-{
-}
 
 //--------------------------------------------------------------------------------------------------------------------------
 void soilMoistureMeasurement()
@@ -207,19 +187,23 @@ void watering()
       */
     for (byte i = 0; i < counterToWatering; i++) // Valves to turn on as many as the number of sections to water
     {
-      Serial.print("The valve " + valvePins[sectionToWatering[i]]);
+      Serial.print("The valve ");
+      Serial.print(valvePins[sectionToWatering[i]]);
       Serial.println(" is going to be open...");
       digitalWrite(valvePins[sectionToWatering[i]], HIGH); // Turn on the i-th valve as many times as the number of sections to water
-      Serial.print("The soil sensor " + soilPins[sectionToWatering[i]]);
+      Serial.print("The soil sensor ");
+      Serial.print(soilPins[sectionToWatering[i]]);
       Serial.println(" is going to measure...");
       digitalWrite(soilPins[sectionToWatering[i]], HIGH);
       byte maxWateringTime = 0;
       do
       {
         sensorState = map(analogRead(sensorPin), waterValue[sectionToWatering[i]], airValue[sectionToWatering[i]], 100, 1);
-        Serial.print("I'm watering for " + maxWateringTime);
+        Serial.print("I'm watering for ");
+        Serial.print(maxWateringTime);
         Serial.print(" seconds  ");
-        Serial.print("and there's " + sensorState);
+        Serial.print("and there's ");
+        Serial.print(sensorState);
         Serial.println(" % of soil humidity! Keep watering...");
         delay(500); // [seconds] interval between measurement
         maxWateringTime += 0.5;
@@ -236,7 +220,8 @@ void watering()
         }
       } while (sensorState < 95);
       digitalWrite(valvePins[sectionToWatering[i]], LOW); // Turn off the i-th valve and go to the next valve
-      Serial.print("The valve " + valvePins[sectionToWatering[i]]);
+      Serial.print("The valve ");
+      Serial.print(valvePins[sectionToWatering[i]]);
       Serial.println(" is closed...");
 
       /*
@@ -288,11 +273,51 @@ void reconnectBlynk()
     }
   }
 }
+//-----------------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------------------------------------------------------
+void temperatureMeasurement()
+{
+
+  Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
+  delay(750);
+ 
+
+ float t_db1 = sensors.getTempC(DBsensor1);
+  Serial.print("Sensor 1(*C): ");
+  Serial.print(t_db1);
+  
+
+  float t_db2 = sensors.getTempC(DBsensor2);
+  Serial.print("Sensor 2(*C): ");
+  Serial.print(t_db2);
+
+
+ float t_db3 = sensors.getTempC(DBsensor3);
+  Serial.print("Sensor 3(*C): ");
+  Serial.print(t_db3);
+ 
+ float t_db4 = sensors.getTempC(DBsensor4);
+  Serial.print("Sensor 3(*C): ");
+  Serial.print(t_db4);
+  Serial.println();
+
+    Blynk.virtualWrite(V21, t_db1);
+  Blynk.virtualWrite(V22, t_db2);
+  Blynk.virtualWrite(V23, t_db3);
+  Blynk.virtualWrite(V24, t_db4);
+  
+}
+
+//--------------------------------------------------------------------------------------------------------------------------
 void mainProgram()
 {
-  //soilMoistureMeasurement();
+  soilMoistureMeasurement();
   //watering();
-  findAdressDS18B20();
+  temperatureMeasurement();
+  
 }
 //--------------------------------------------------------------------------------------------------------------------------
 void setup()
@@ -319,6 +344,8 @@ void setup()
   }
 
   pinMode(sensorPin, INPUT); // set up analog sensor pin
+
+
 
   sensors.begin();        // DS18B20s
   WiFi.begin(ssid, pass); // Non-blocking if no WiFi available
