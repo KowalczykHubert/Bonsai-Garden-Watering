@@ -57,8 +57,8 @@ const byte waterLevelInputPin = 34;                                      // wate
 const byte sensorPin = 35;                                               // analog sensor input pin
 const byte valvePins[] = {15, 2, 4, 16, 17, 5, 18, 19};                  // pins for turning valves on and off {15, 2, 4, 16, 17, 5, 18, 19};
 const byte soilPins[] = {13, 12, 14, 27, 26, 25, 33, 32};                // pins for turning soil sensors on and off {13, 12, 14, 27, 26, 25, 33, 32};
-const int airValue[] = {2710, 2700, 2760, 2690, 2680, 2750, 2700, 2700}; // soil moisture sensors calibration (to be determined experimentally)
-const int waterValue[] = {850, 870, 890, 830, 850, 890, 870, 870};       // soil moisture sensors calibration (to be determined experimentally)
+const int airValue[] = {1700, 1700, 1660, 1550, 1450, 1400, 1550, 1500}; // soil moisture sensors calibration (to be determined experimentally)
+const int waterValue[] = {1050, 840, 900, 800, 730, 1000, 780, 820};       // soil moisture sensors calibration (to be determined experimentally)
 
 byte sectionToWatering[sizeof(soilPins)]; // Array of valve numbers that require opening and watering
 int sS[sizeof(soilPins)];                 // Array of measured humidity in all sections
@@ -66,12 +66,12 @@ byte counterToWatering;                   // Variable for the number of opened v
 
 int sensorState; // soil moisture measurement variable (sensorPin)
 
-#define numOfMeasurements 2         // Number of measurements in one loop by secion
-#define measDelay 1500               // delay between measurements in one section
+#define numOfMeasurements 5         // Number of measurements in one loop by secion
+#define measDelay 2000               // delay between measurements in one section
 int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
 byte reconnectTimer = 60;  // Timer interval in seconds [blynk reconection]
-float mainTimer = 5;       // Timer interval in minutes [watering]
+float mainTimer = 10;       // Timer interval in minutes [watering]
 byte minHumidity = 75;     // [%] minimal soil humidity when the pump starts
 byte wateringLeft = 0;     // empty water tank variable
 byte maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
@@ -282,7 +282,7 @@ void temperatureMeasurement()
   Serial.print("Requesting temperatures...");
   sensors.requestTemperatures(); // Send the command to get temperatures
   Serial.println("DONE");
-  delay(750);
+  delay(250);
  
 
  float t_db1 = sensors.getTempC(DBsensor1);
