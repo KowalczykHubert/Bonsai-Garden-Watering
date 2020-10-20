@@ -71,14 +71,14 @@ int sensorState; // soil moisture measurement variable (sensorPin)
 int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
 byte reconnectTimer = 60;  // Timer interval in seconds [blynk reconection]
-float mainTimer = 10;       // Timer interval in minutes [watering]
+float mainTimer = 10;       // Timer interval in minutes [soil moisture]
 byte minHumidity = 75;     // [%] minimal soil humidity when the pump starts
 byte wateringLeft = 0;     // empty water tank variable
 byte maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
 int waterTank;             // water level variable
 
 /*
-void checkWather()
+void checkWeather()
 {
   //     ...::: BME280 :::...
   t_bme = bme.readTemperature();                  // Temperature measurement
@@ -108,6 +108,8 @@ void checkWather()
   Serial.println();
 }
 */
+
+//----------------------------------------------------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------------------------------------------------------
 void soilMoistureMeasurement()
@@ -316,7 +318,7 @@ void mainProgram()
 {
   soilMoistureMeasurement();
   //watering();
-  temperatureMeasurement();
+  //temperatureMeasurement();
   
 }
 //--------------------------------------------------------------------------------------------------------------------------
@@ -329,7 +331,7 @@ void setup()
     // attach the channel to the GPIO to be controlled
     ledcAttachPin(waterPumpPin, pumpChannel);
     */
-
+  
   pinMode(waterLevelInputPin, INPUT); // water pump switch Pin
   pinMode(waterPumpPin, OUTPUT);      // water tank (level) pin
 
