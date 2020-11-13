@@ -71,7 +71,7 @@ int sensorState; // soil moisture measurement variable (sensorPin)
 int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
 byte reconnectTimer = 60;  // Timer interval in seconds [blynk reconection]
-float mainTimer = 10;       // Timer interval in minutes [soil moisture]
+float mainTimer = 1;       // Timer interval in minutes [soil moisture]
 byte minHumidity = 75;     // [%] minimal soil humidity when the pump starts
 byte wateringLeft = 0;     // empty water tank variable
 byte maxWateringLeft = 15; // how many waterings left (sensor detect low water level)
@@ -110,6 +110,10 @@ void checkWeather()
 */
 
 //----------------------------------------------------------------------------------------------------------------------
+void newSoilMoisture()
+{
+  
+}
 
 //--------------------------------------------------------------------------------------------------------------------------
 void soilMoistureMeasurement()
@@ -316,7 +320,7 @@ void temperatureMeasurement()
 //--------------------------------------------------------------------------------------------------------------------------
 void mainProgram()
 {
-  soilMoistureMeasurement();
+  //soilMoistureMeasurement();
   //watering();
   //temperatureMeasurement();
   
@@ -364,7 +368,7 @@ void setup()
 void loop() // Main loop of the program
 {
 
-  timer.run(); // Run interwal main function (checkPlants)
+  timer.run(); // Run interwal main function (mainProgram)
   if (Blynk.connected())
   {
     Blynk.run();
