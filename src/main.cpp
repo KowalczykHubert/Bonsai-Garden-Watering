@@ -67,13 +67,13 @@ byte counterToWatering;                   // Variable for the number of opened v
 int sensorState = 0; // soil moisture measurement variable (sensorPin)
 
 #define numOfMeasurements 3                                 // Number of measurements in one loop by secion
-#define measDelay 2000                                      // delay between measurements in one section
+#define measDelay 2000                                     // delay between measurements in one section
 float sensorDelay = (measDelay * numOfMeasurements) + 1000; // delay between turing on the next sensor
 int h_cptv_meas[numOfMeasurements];                         // array of measurement results in one section
 
 byte reconnectTimer = 60; // Timer interval in seconds [blynk reconection]
 float measurementTime = (sensorDelay / 1000) * sizeof(soilPins) / 60;
-float mainTimer = measurementTime + 0.1; // Timer interval in minutes [soil moisture]
+float mainTimer = measurementTime + 0.15; // Timer interval in minutes [soil moisture] delay between measurements
 byte minHumidity = 75;                   // [%] minimal soil humidity when the pump starts
 byte wateringLeft = 0;                   // empty water tank variable
 byte maxWateringLeft = 15;               // how many waterings left (sensor detect low water level)
@@ -112,12 +112,6 @@ void checkWeather()
 */
 
 //----------------------------------------------------------------------------------------------------------------------
-void print1()
-{
-  Serial.println("print 1");
-}
-
-// capture current "time"
 byte i; // counter for sensors and valves
 byte j; // counter for measurements
 
@@ -131,36 +125,36 @@ void avgMeas()
   sensorState += h_cptv_meas[j]; // Add the j-th measurement result to the variable
 
   if (j == numOfMeasurements - 1)
-  {
-    Serial.print("wyłączyłem czujnik nr : ");
-    Serial.println(i+1);
-    digitalWrite(soilPins[i], LOW);
-
-    sensorState /= numOfMeasurements; // calculate the average of the measurements
-    Serial.print("Average value = ");
-    Serial.println(sensorState);
-    sS[i] = map(sensorState, waterValue[i], airValue[i], 100, 1); // map the measurement to a range of 0 to 100
-
-    Serial.print("Soil humidity cptv_");
-    Serial.print(i + 1);
-    Serial.print(" = ");
-    Serial.println(sS[i]);
-    Serial.println();
-    Blynk.virtualWrite(i, sS[i]); // Send humidity to mobile app
-
-    if (sS[i] < minHumidity) // check if plants should be watered on the i-th sensor
     {
-      sectionToWatering[counterToWatering] = i; // write to the array the section number that requires watering
-      counterToWatering += 1;                   // increment the variable of number watering in the next step
+      Serial.print("wyłączyłem czujnik nr : ");
+      Serial.println(i+1);
+      digitalWrite(soilPins[i], LOW);
+      
+      sensorState /= numOfMeasurements; // calculate the average of the measurements
+      Serial.print("Average value = ");
+      Serial.println(sensorState);
+      sS[i] = map(sensorState, waterValue[i], airValue[i], 100, 1); // map the measurement to a range of 0 to 100
+
+      Serial.print("Soil humidity cptv_");
+      Serial.print(i + 1);
+      Serial.print(" = ");
+      Serial.println(sS[i]);
+      Serial.println();
+      Blynk.virtualWrite(i, sS[i]); // Send humidity to mobile app
+
+      if (sS[i] < minHumidity) // check if plants should be watered on the i-th sensor
+      {
+        sectionToWatering[counterToWatering] = i; // write to the array the section number that requires watering
+        counterToWatering += 1;                   // increment the variable of number watering in the next step
+      }
+      sensorState = 0;
+      j = 0;
+      i++;
     }
-    sensorState = 0;
-    j = 0;
-    i++;
-  }
   else
-  {
-    j++;
-  }
+    {
+      j++;
+    }
 }
 
 void sensorOn()
@@ -168,10 +162,7 @@ void sensorOn()
   digitalWrite(soilPins[i], HIGH);
   Serial.print("włączyłem czujnik nr : ");
   Serial.println(i + 1);
-  if (i == (sizeof(soilPins) - 1))
-  {
-    i = 0;
-  }
+  
  
   // if (millis() - previousMillis > measDelay)
   //{
@@ -180,7 +171,7 @@ void sensorOn()
   //}
 }
 
-void funkcja()
+void moistureMeasurement()
 {
   counterToWatering = 0;
   i=0;
@@ -353,47 +344,52 @@ void reconnectBlynk()
   }
 }
 //-----------------------------------------------------------------------------------
-
+void currentMeasurement()
+{
+  
+}
 //--------------------------------------------------------------------------------------------------------------------------
+void getTemp()
+  {
+    float t_db1 = sensors.getTempC(DBsensor1);
+    Serial.print("Sensor 1(*C): ");
+    Serial.print(t_db1);
+
+    float t_db2 = sensors.getTempC(DBsensor2);
+    Serial.print("Sensor 2(*C): ");
+    Serial.print(t_db2);
+
+    float t_db3 = sensors.getTempC(DBsensor3);
+    Serial.print("Sensor 3(*C): ");
+    Serial.print(t_db3);
+
+    float t_db4 = sensors.getTempC(DBsensor4);
+    Serial.print("Sensor 3(*C): ");
+    Serial.print(t_db4);
+    Serial.println();
+
+    Blynk.virtualWrite(V21, t_db1);
+    Blynk.virtualWrite(V22, t_db2);
+    Blynk.virtualWrite(V23, t_db3);
+    Blynk.virtualWrite(V24, t_db4);
+  }
+
 void temperatureMeasurement()
 {
-
   Serial.print("Requesting temperatures...");
   sensors.requestTemperatures(); // Send the command to get temperatures
   Serial.println("DONE");
-  delay(250);
-
-  float t_db1 = sensors.getTempC(DBsensor1);
-  Serial.print("Sensor 1(*C): ");
-  Serial.print(t_db1);
-
-  float t_db2 = sensors.getTempC(DBsensor2);
-  Serial.print("Sensor 2(*C): ");
-  Serial.print(t_db2);
-
-  float t_db3 = sensors.getTempC(DBsensor3);
-  Serial.print("Sensor 3(*C): ");
-  Serial.print(t_db3);
-
-  float t_db4 = sensors.getTempC(DBsensor4);
-  Serial.print("Sensor 3(*C): ");
-  Serial.print(t_db4);
-  Serial.println();
-
-  Blynk.virtualWrite(V21, t_db1);
-  Blynk.virtualWrite(V22, t_db2);
-  Blynk.virtualWrite(V23, t_db3);
-  Blynk.virtualWrite(V24, t_db4);
+  timer.setTimeout(500, getTemp);
+  //delay(250);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------
 void mainProgram()
 {
-  //soilMoistureMeasurement();
-  //watering();
-  //temperatureMeasurement();
-  //newSoilMoistureMeasurement(); // do usunięcia
-  funkcja();
+  //soilMoistureMeasurement(); / delays
+  //watering(); // delays
+  temperatureMeasurement();
+  moistureMeasurement(); // timers
 }
 //--------------------------------------------------------------------------------------------------------------------------
 void setup()
