@@ -306,7 +306,7 @@ void temperatureMeasurement()
   Serial.print(t_db4);
   Serial.println();
 
-    Blynk.virtualWrite(V21, t_db1);
+  Blynk.virtualWrite(V21, t_db1);
   Blynk.virtualWrite(V22, t_db2);
   Blynk.virtualWrite(V23, t_db3);
   Blynk.virtualWrite(V24, t_db4);
