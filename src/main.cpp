@@ -344,7 +344,7 @@ void reconnectBlynk()
   }
 }
 //-----------------------------------------------------------------------------------
-void currentMeasurement()
+void currentMeasurement() // do uzupełnienia
 {
   
 }
