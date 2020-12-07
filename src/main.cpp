@@ -70,7 +70,7 @@ int sensorState; // soil moisture measurement variable (sensorPin)
 #define measDelay 2000               // delay between measurements in one section
 int h_cptv_meas[numOfMeasurements]; // array of measurement results in one section
 
-byte reconnectTimer = 60;  // Timer interval in seconds [blynk reconection]
+byte reconnectTimer = 10;  // Timer interval in seconds [blynk reconection]
 float mainTimer = 10;       // Timer interval in minutes [soil moisture]
 byte minHumidity = 75;     // [%] minimal soil humidity when the pump starts
 byte wateringLeft = 0;     // empty water tank variable
@@ -312,7 +312,7 @@ void temperatureMeasurement()
   Blynk.virtualWrite(V24, t_db4);
   
 }
-
+//---------------------------------------------------
 int secDC = 0;
 int secC=0;
 void ifConnected()
@@ -332,7 +332,7 @@ void mainProgram()
 {
   soilMoistureMeasurement();
   //watering();
-  //temperatureMeasurement();
+  temperatureMeasurement();
   
 }
 //--------------------------------------------------------------------------------------------------------------------------
