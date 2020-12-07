@@ -382,6 +382,20 @@ void temperatureMeasurement()
   timer.setTimeout(500, getTemp);
   //delay(250);
 }
+//---------------------------------------------------
+int secDC = 0;
+int secC=0;
+void ifConnected()
+{
+  if (!Blynk.connected())
+    {
+      secDC+=1;
+      Blynk.virtualWrite(V26,secDC);
+    }
+  
+  secC += 1;
+  Blynk.virtualWrite(V25, secC);
+}
 
 //--------------------------------------------------------------------------------------------------------------------------
 void mainProgram()
@@ -426,6 +440,7 @@ void setup()
   //bme.begin(0x76);              // set up bme sensor
   timer.setInterval(mainTimer * 60000L, mainProgram);        // Set up interwal checkPlants function call
   timer.setInterval(reconnectTimer * 1000L, reconnectBlynk); // Set up interwal checkPlants function call
+  timer.setInterval(1000L,ifConnected);                       // Check for 1 sec if blynk is connected to internet
   mainProgram();                                             // Call function at start
 }
 //--------------------------------------------------------------------------------------------------------------------------
