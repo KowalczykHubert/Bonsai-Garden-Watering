@@ -71,9 +71,9 @@ int sensorState = 0; // soil moisture measurement variable (sensorPin)
 float sensorDelay = (measDelay * numOfMeasurements) + 1000; // delay between turing on the next sensor
 int h_cptv_meas[numOfMeasurements];                         // array of measurement results in one section
 
-byte reconnectTimer = 60; // Timer interval in seconds [blynk reconection]
+byte reconnectTimer = 10; // Timer interval in seconds [blynk reconection]
 float measurementTime = (sensorDelay / 1000) * sizeof(soilPins) / 60;
-float mainTimer = measurementTime + 0.15; // Timer interval in minutes [soil moisture] delay between measurements
+float mainTimer = measurementTime + 1; // Timer interval in minutes [soil moisture] delay between measurements MINIMAL !!!! 0.15 = 9 seconds
 byte minHumidity = 75;                   // [%] minimal soil humidity when the pump starts
 byte wateringLeft = 0;                   // empty water tank variable
 byte maxWateringLeft = 15;               // how many waterings left (sensor detect low water level)
@@ -327,6 +327,11 @@ void watering()
 }
 
 //--------------------------------------------------------------------------------------------------------------------------
+unsigned long previousMillis = millis();
+unsigned long currentMillis = millis();
+int secDC = 0;
+int secC = 0;
+
 void reconnectBlynk()
 {
   if (!Blynk.connected())
