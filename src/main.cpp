@@ -331,17 +331,35 @@ void reconnectBlynk()
 {
   if (!Blynk.connected())
   {
+    
     WiFi.begin(ssid, pass); // Non-blocking if no WiFi available
     Serial.println("Lost connection");
     if (Blynk.connect(10000))
     {
       Serial.println("Reconnected");
+      Serial.print("Nie było neta przez: ");
+      Serial.println(secDC);
     }
     else
     {
       Serial.println("Not reconnected");
     }
   }
+}
+//-----------------------------------------------------------------------------------
+
+void ifConnected()
+{
+  if (!Blynk.connected())
+    {
+      currentMillis = millis();
+      secDC += (currentMillis - previousMillis)/1000;
+      
+    }
+    previousMillis = millis();
+  Blynk.virtualWrite(V26,secDC);
+  secC += 1;
+  Blynk.virtualWrite(V25, secC);
 }
 //-----------------------------------------------------------------------------------
 void currentMeasurement() // do uzupełnienia
@@ -381,20 +399,6 @@ void temperatureMeasurement()
   Serial.println("DONE");
   timer.setTimeout(500, getTemp);
   //delay(250);
-}
-//---------------------------------------------------
-int secDC = 0;
-int secC=0;
-void ifConnected()
-{
-  if (!Blynk.connected())
-    {
-      secDC+=1;
-      Blynk.virtualWrite(V26,secDC);
-    }
-  
-  secC += 1;
-  Blynk.virtualWrite(V25, secC);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------
