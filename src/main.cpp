@@ -329,8 +329,8 @@ void watering()
 //--------------------------------------------------------------------------------------------------------------------------
 unsigned long previousMillis = millis();
 unsigned long currentMillis = millis();
-int secDC = 0;
-int secC = 0;
+float secDC = 0;
+float secC = 0;
 
 void reconnectBlynk()
 {
@@ -352,20 +352,22 @@ void reconnectBlynk()
   }
 }
 //-----------------------------------------------------------------------------------
+//---------------------------------------------------
 
 void ifConnected()
 {
   if (!Blynk.connected())
     {
       currentMillis = millis();
-      secDC += (currentMillis - previousMillis)/1000;
+      secDC += ((currentMillis - previousMillis)/1000);
       
     }
     previousMillis = millis();
-  Blynk.virtualWrite(V26,secDC);
+  Blynk.virtualWrite(V26,(secDC/60));
   secC += 1;
-  Blynk.virtualWrite(V25, secC);
+  Blynk.virtualWrite(V25, (secC/60));
 }
+
 //-----------------------------------------------------------------------------------
 void currentMeasurement() // do uzupełnienia
 {
