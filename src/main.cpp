@@ -1,15 +1,36 @@
 #define BLYNK_PRINT Serial
 
+
 //#include <Arduino.h>
 //#include <WiFi.h>
 //#include <WiFiClient.h>
 #include <Credentials.h>
 #include <BlynkSimpleEsp32.h>
 
+//ACS 712 20A
+#include "ACS712.h"
+ACS712 battery_sensor(ACS712_20A, 39);
+ACS712 load_sensor(ACS712_05B, 36);
+
+#include "PCF8574.h"
+#include <Arduino.h>
+
+// adjust addresses if needed
+#define PCF_adress 0x20
+PCF8574 PCF(PCF_adress);
+
+
+// Deep Sleep definitions
+#define uS_TO_S_FACTOR 60000000  /* Conversion factor for micro seconds to minutes */
+#define TIME_TO_SLEEP  20        /* Time ESP32 will go to sleep (in minues) */
+
+RTC_DATA_ATTR int bootCount = 0; // Can save some data to memory
+
+
 #include <OneWire.h>
 #include <DallasTemperature.h>
 // Data wire is plugged into pin ...
-#define ONE_WIRE_BUS 21
+#define ONE_WIRE_BUS 13 //był 21
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
 // Pass our oneWire reference to Dallas Temperature.
@@ -45,6 +66,17 @@ char auth[] = APIKEY;   // Auth Token in the Blynk App.
 char ssid[] = SSIDHOME; // WiFi credentials (Credentails.h)
 char pass[] = PASSHOME; // WiFi credentials (Credentails.h)
 
+// PCF8574 pins to virtual pins
+
+ BLYNK_WRITE (V15) // V0 is the number of Virtual Pin For Read From BLYNK APP
+  {
+  int pinValue = param.asInt ();
+
+  PCF.digitalWrite (0, pinValue);
+  Serial.print ("pinValue0 =");
+  Serial.println (pinValue);
+  }
+
 /*
 // setting PWM properties (dc motor speed settings)
 const int freq = 30000;
@@ -52,11 +84,14 @@ const int pumpChannel = 0;
 const int resolution = 8;
 */
 
+const byte voltageBatteryPin = 33;
+const byte lightSensorPin = 32; // pin for wiring GND photoresistor
 const byte waterPumpPin = 23;                                            // water pump switch Pin
 const byte waterLevelInputPin = 34;                                      // water tank (level) pin
-const byte sensorPin = 35;                                               // analog sensor input pin
+const byte moistureSensorPin = 35;                                               // analog sensor input pin
 const byte valvePins[] = {15, 2, 4, 16, 17, 5, 18, 19};                  // pins for turning valves on and off {15, 2, 4, 16, 17, 5, 18, 19};
-const byte soilPins[] = {13, 12, 14, 27, 26, 25, 33, 32};                // pins for turning soil sensors on and off {13, 12, 14, 27, 26, 25, 33, 32};
+const byte soilPins[] = {0,1,2,3,4,5,6,7};                         // PCF8574 pins for soil moisture sensors turning on / off 
+//const byte soilPins[] = {13, 12, 14, 27, 26, 25, 33, 32};                // ESP32 pins {13, 12, 14, 27, 26, 25, 33, 32};
 const int airValue[] = {1700, 1700, 1660, 1550, 1450, 1400, 1550, 1500}; // soil moisture sensors calibration (to be determined experimentally)
 const int waterValue[] = {1050, 840, 900, 800, 730, 1000, 780, 820};     // soil moisture sensors calibration (to be determined experimentally)
 
@@ -71,9 +106,9 @@ int sensorState = 0; // soil moisture measurement variable (sensorPin)
 float sensorDelay = (measDelay * numOfMeasurements) + 1000; // delay between turing on the next sensor
 int h_cptv_meas[numOfMeasurements];                         // array of measurement results in one section
 
-byte reconnectTimer = 10; // Timer interval in seconds [blynk reconection]
+
 float measurementTime = (sensorDelay / 1000) * sizeof(soilPins) / 60;
-float mainTimer = measurementTime + 1; // Timer interval in minutes [soil moisture] delay between measurements MINIMAL !!!! 0.15 = 9 seconds
+//float mainTimer = measurementTime + 1; // Timer interval in minutes [soil moisture] delay between measurements MINIMAL !!!! 0.15 = 9 seconds
 byte minHumidity = 75;                   // [%] minimal soil humidity when the pump starts
 byte wateringLeft = 0;                   // empty water tank variable
 byte maxWateringLeft = 15;               // how many waterings left (sensor detect low water level)
@@ -110,6 +145,50 @@ void checkWeather()
   Serial.println();
 }
 */
+//----------------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------------------
+const int lightIntensityLimit = 20; // do ustawienia eksperymentalnie
+const int dayLightIntensity = 4096; // ADC value for day
+const int nightLightIntensity = 0; // ADC value for night
+int lightIntensity;
+byte isDay = 0;
+WidgetLCD lcd(V1);
+
+void isDayOrNight()
+{
+  lcd.clear();
+  lcd.print(0,1,"Wstałem");
+  lightIntensity = map(analogRead(lightSensorPin), dayLightIntensity, nightLightIntensity, 100, 0);
+  Serial.print("Natężenie światła: ");
+  Serial.print(lightIntensity);
+  Blynk.virtualWrite(V51, lightIntensity);
+  Serial.println(" %");
+  if (lightIntensity > lightIntensityLimit)
+  {
+    Serial.println("Pracuję cały czas, ponieważ mamy piękny dzień!");
+    lcd.print(0,0, "Pracuje...");
+    isDay = 1;
+  }
+  else
+  {
+    if (isDay == 1)
+    {
+      Serial.println("Wygląda na to, że zrobiło się już ciemno, więc idę spać :)");
+      lcd.print(0,0,  "Robi sie ciemno...");
+    }
+    else
+    {
+      Serial.println("Wygląda na to, że nadal mamy noc, więc idę spać dalej :)");
+      lcd.print(0,0, "Nadal ciemno...");
+    }
+  Serial.flush();
+  Serial.println("ZzZzZ...");
+  lcd.print(0,1, "Ide spac...");
+  sleep(500);
+  esp_deep_sleep_start();
+  Serial.println("Tego już nie napiszę ponieważ zasnąłęm...");
+  }
+}
 
 //----------------------------------------------------------------------------------------------------------------------
 byte i; // counter for sensors and valves
@@ -117,7 +196,7 @@ byte j; // counter for measurements
 
 void avgMeas()
 {
-  h_cptv_meas[j] = analogRead(sensorPin);
+  h_cptv_meas[j] = analogRead(moistureSensorPin);
   Serial.print(h_cptv_meas[j]);
   Serial.print(" ");
   Serial.print("zrobiłem pomiar nr : ");
@@ -128,7 +207,7 @@ void avgMeas()
     {
       Serial.print("wyłączyłem czujnik nr : ");
       Serial.println(i+1);
-      digitalWrite(soilPins[i], LOW);
+      PCF.digitalWrite(soilPins[i], LOW);
       
       sensorState /= numOfMeasurements; // calculate the average of the measurements
       Serial.print("Average value = ");
@@ -150,6 +229,10 @@ void avgMeas()
       sensorState = 0;
       j = 0;
       i++;
+      if (i==sizeof(soilPins))
+      {
+        isDayOrNight();
+      }
     }
   else
     {
@@ -159,11 +242,9 @@ void avgMeas()
 
 void sensorOn()
 {
-  digitalWrite(soilPins[i], HIGH);
+  PCF.digitalWrite(soilPins[i], HIGH);
   Serial.print("włączyłem czujnik nr : ");
   Serial.println(i + 1);
-  
- 
   // if (millis() - previousMillis > measDelay)
   //{
   //unsigned long previousMillis = millis();
@@ -193,7 +274,7 @@ void soilMoistureMeasurement()
     for (byte j = 0; j < numOfMeasurements; j++) // Take as many measurements on the j-th sensor as defined in the variable
     {
       delay(measDelay);                       //Tnterval between subsequent measurements within the i-th sensor
-      h_cptv_meas[j] = analogRead(sensorPin); // Save the j-th measurement to array
+      h_cptv_meas[j] = analogRead(moistureSensorPin); // Save the j-th measurement to array
       sensorState += h_cptv_meas[j];          // Add the j-th measurement result to the variable
       Serial.print(h_cptv_meas[j]);
       Serial.print(" ");
@@ -268,7 +349,7 @@ void watering()
       byte maxWateringTime = 0;
       do
       {
-        sensorState = map(analogRead(sensorPin), waterValue[sectionToWatering[i]], airValue[sectionToWatering[i]], 100, 1);
+        sensorState = map(analogRead(moistureSensorPin), waterValue[sectionToWatering[i]], airValue[sectionToWatering[i]], 100, 1);
         Serial.print("I'm watering for ");
         Serial.print(maxWateringTime);
         Serial.print(" seconds  ");
@@ -327,6 +408,7 @@ void watering()
 }
 
 //--------------------------------------------------------------------------------------------------------------------------
+byte reconnectTimer = 5; // Timer interval in seconds [blynk reconection]
 unsigned long previousMillis = millis();
 unsigned long currentMillis = millis();
 float secDC = 0;
@@ -339,7 +421,7 @@ void reconnectBlynk()
     
     WiFi.begin(ssid, pass); // Non-blocking if no WiFi available
     Serial.println("Lost connection");
-    if (Blynk.connect(10000))
+    if (Blynk.connect(5000))
     {
       Serial.println("Reconnected");
       Serial.print("Nie było neta przez: ");
@@ -369,8 +451,106 @@ void ifConnected()
 }
 
 //-----------------------------------------------------------------------------------
+
+float battery_sensor_I;
+float battery_sensor_calibrating = 7.595;
+
+float load_sensor_I;
+float load_sensor_calibrating = 4.104;
+
+const int numReadings = 5;
+int measCurrentDelay = 50;
+const byte numReadingsAux = 15;
+
+float battery_readings[numReadings];      // the readings from the analog input
+float load_readings[numReadings];
+
+float battery_readingsAux[numReadingsAux];
+float load_readingsAux[numReadingsAux];
+
+byte readIndex = 0;
+byte readIndexAux = 0;
+float battery_totalAux = 0;             // the index of the current reading
+float load_totalAux = 0;
+float battery_total = 0;                 // the running total
+float load_total = 0;
+float battery_average = 0;                // the average
+float load_average = 0;
+
+float battery_averageAux = 0;
+float load_averageAux = 0;
+
+void avgCurrentMeas()
+{
+  battery_totalAux = battery_totalAux - battery_readingsAux[readIndexAux];
+  load_totalAux = load_totalAux - load_readingsAux[readIndexAux];
+
+  battery_readingsAux[readIndexAux] = battery_sensor.getCurrentDC() - battery_sensor_calibrating;
+  load_readingsAux[readIndexAux] = load_sensor.getCurrentDC() - load_sensor_calibrating;
+  
+   // add the reading to the total:
+  battery_totalAux = battery_totalAux + battery_readingsAux[readIndexAux];
+  load_totalAux = load_totalAux + load_readingsAux[readIndexAux];
+
+  // advance to the next position in the array:
+  readIndexAux = readIndexAux + 1;
+
+  // if we're at the end of the array...
+  if (readIndexAux >= numReadingsAux) {
+    // ...wrap around to the beginning:
+    readIndexAux = 0;
+  }
+     // calculate the average:
+  battery_averageAux = battery_totalAux / numReadingsAux;
+  load_averageAux = load_totalAux / numReadingsAux;
+}
+
 void currentMeasurement() // do uzupełnienia
 {
+	load_sensor_I = load_sensor.getCurrentDC()-load_sensor_calibrating; 
+  battery_sensor_I = battery_sensor.getCurrentDC()-battery_sensor_calibrating;
+
+  // Send it to serial
+  Serial.println(String("I = ") + battery_averageAux + " mA");  //battery_sensor_I
+  Blynk.virtualWrite(V45, battery_averageAux);                  //battery_sensor_I
+  Serial.println(String("I = ") + load_averageAux + " mA");     //load_sensor_I
+  Blynk.virtualWrite(V46, load_averageAux);                     //load_sensor_I
+
+
+  // Average from a few last measurements
+  timer.setTimer(measCurrentDelay, avgCurrentMeas, numReadingsAux);
+
+  battery_total = battery_total - battery_readings[readIndex];
+  load_total = load_total - load_readings[readIndex];
+
+  // read from the sensor:
+  battery_readings[readIndex] = battery_averageAux;
+  load_readings[readIndex] = load_averageAux;
+
+  // add the reading to the total:
+  battery_total = battery_total + battery_readings[readIndex];
+  load_total = load_total + load_readings[readIndex];
+  // advance to the next position in the array:
+  readIndex = readIndex + 1;
+
+  // if we're at the end of the array...
+  if (readIndex >= numReadings) {
+    // ...wrap around to the beginning:
+    readIndex = 0;
+  }
+
+  // calculate the average:
+  battery_average = battery_total / numReadings;
+  load_average = load_total / numReadings;
+  // send it to the computer as ASCII digits
+  Serial.print("Średnia battery z nowej metody = ");
+  Serial.println(battery_average);
+  Serial.print("Średnia load z nowej metody = ");
+  Serial.println(load_average);
+  Serial.println();
+  
+  Blynk.virtualWrite(V47, battery_average);
+  Blynk.virtualWrite(V48, load_average);
   
 }
 //--------------------------------------------------------------------------------------------------------------------------
@@ -403,18 +583,95 @@ void temperatureMeasurement()
 {
   Serial.print("Requesting temperatures...");
   sensors.requestTemperatures(); // Send the command to get temperatures
+  float temperatureC = sensors.getTempCByIndex(0);
+  Serial.print(temperatureC); //jhh
+  Serial.println("ºC"); //kk
   Serial.println("DONE");
   timer.setTimeout(500, getTemp);
   //delay(250);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------
+int battery_meas;
+float battery_voltage;
+float voltage_ratio = 6.13;
+float voltage_calibration = 0.615;
+float battery_voltage_totalAux = 0;
+float battery_voltage_readingsAux[numReadingsAux];
+byte voltage_readIndexAux = 0;
+byte voltage_readIndex = 0;
+float battery_voltage_averageAux = 0;
+float battery_voltage_total = 0;
+float battery_voltage_readings[numReadings];
+float battery_voltage_average = 0;
+
+void avgVoltageMeas()
+{
+  battery_voltage_totalAux = battery_voltage_totalAux - battery_voltage_readingsAux[voltage_readIndexAux];
+  
+  battery_voltage_readingsAux[voltage_readIndexAux] = (((analogRead(voltageBatteryPin)/4095.0) * 3.3) * voltage_ratio) + voltage_calibration;
+    
+   // add the reading to the total:
+  battery_voltage_totalAux = battery_voltage_totalAux + battery_voltage_readingsAux[voltage_readIndexAux];
+
+  // advance to the next position in the array:
+  voltage_readIndexAux = voltage_readIndexAux + 1;
+
+  // if we're at the end of the array...
+  if (voltage_readIndexAux >= numReadingsAux) {
+    // ...wrap around to the beginning:
+    voltage_readIndexAux = 0;
+  }
+     // calculate the average:
+  battery_voltage_averageAux = battery_voltage_totalAux / numReadingsAux;
+}
+
+
+void voltageMeasurement()
+{
+    
+  battery_meas = analogRead(voltageBatteryPin);
+  battery_voltage = (((battery_meas/4095.0) * 3.3) * voltage_ratio) + voltage_calibration;
+  //((battery_meas * 3.2) / 4095) * ((4700 + 909.0909090909)/909.090909090);
+  //battery_meas*(3.3/4096);
+  //(battery_meas/(4096 * 20.361));
+  //((battery_meas * 3.3) / 4095) * ((4700 + 909.0909090909)/909.090909090);
+
+  //Serial.println(battery_voltage);
+  Blynk.virtualWrite(V49, battery_voltage);
+
+  timer.setTimer(measCurrentDelay, avgVoltageMeas, numReadingsAux);
+
+
+  battery_voltage_total = battery_voltage_total - battery_voltage_readings[voltage_readIndex];
+  
+  battery_voltage_readings[voltage_readIndex] = battery_voltage_averageAux; //+ voltage_calibration;
+    
+   // add the reading to the total:
+  battery_voltage_total = battery_voltage_total + battery_voltage_readings[voltage_readIndex];
+
+  // advance to the next position in the array:
+  voltage_readIndex = voltage_readIndex + 1;
+
+  // if we're at the end of the array...
+  if (voltage_readIndex >= numReadings) {
+    // ...wrap around to the beginning:
+    voltage_readIndex = 0;
+  }
+     // calculate the average:
+  battery_voltage_average = battery_voltage_total / numReadings;
+  Blynk.virtualWrite(V50, battery_voltage_average);
+
+ }
+//--------------------------------------------------------------------------------------------------------------------------
 void mainProgram()
 {
   //soilMoistureMeasurement(); / delays
   //watering(); // delays
-  temperatureMeasurement();
-  moistureMeasurement(); // timers
+  
+  //temperatureMeasurement(); // timers
+  //moistureMeasurement(); // timers
+  //isDayOrNight();
 }
 //--------------------------------------------------------------------------------------------------------------------------
 void setup()
@@ -427,32 +684,76 @@ void setup()
     ledcAttachPin(waterPumpPin, pumpChannel);
     */
 
+  // Light sensor INIT
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR); // Set ESP to sleep for 30 minutes
+
+// currentMeasurement array values set to 0
+for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    battery_readings[thisReading] = 0;
+    load_readings[thisReading] = 0;
+  }
+for (int thisReading = 0; thisReading < numReadingsAux; thisReading++) {
+    battery_readingsAux[thisReading] = 0;
+    load_readingsAux[thisReading] = 0;
+  }
+
+  // PCF8574 setup
+   Serial.print("Init pcf8574...");
+	if (PCF.begin()){
+		Serial.println("OK");
+	}else{
+		Serial.println("KO");
+	}
+  for (byte i = 0; i < sizeof(soilPins); i++)
+  {
+    PCF.pinMode(soilPins[i], OUTPUT);
+  }
+
+
+  //ACS712 setup
+  //Serial.println("Calibrating... Ensure that no current flows through the sensor at this moment");
+  //int zero = sensor.calibrate();
+  //Serial.println("Done!");
+  //Serial.println("Zero point for this sensor = " + zero);
+   
+  // ESP pins setup
   pinMode(waterLevelInputPin, INPUT); // water pump switch Pin
   pinMode(waterPumpPin, OUTPUT);      // water tank (level) pin
 
   //...::: SETUP THE SOIL SENSOR PINS AND VALVES PINS :::...
-  for (byte i = 0; i < sizeof(soilPins); i++)
-  {
-    pinMode(soilPins[i], OUTPUT);
-  }
+  
+  
   for (byte i = 0; i < sizeof(valvePins); i++)
   {
     pinMode(valvePins[i], OUTPUT);
   }
-
-  pinMode(sensorPin, INPUT); // set up analog sensor pin
+  
+  pinMode(moistureSensorPin, INPUT); // set up analog sensor pin
+  pinMode(lightSensorPin, INPUT);
+  pinMode(voltageBatteryPin, INPUT);
 
   sensors.begin();        // DS18B20s
   WiFi.begin(ssid, pass); // Non-blocking if no WiFi available
   Blynk.config(auth);     // Non-blocking if no WiFi available
-  Blynk.connect(10000);   // Non-blocking if no WiFi available
+  Blynk.connect(5000);   // Non-blocking if no WiFi available
   //Blynk.begin(auth, ssid, pass); // set up connection to internet - the code never run without internet connection
 
   //bme.begin(0x76);              // set up bme sensor
-  timer.setInterval(mainTimer * 60000L, mainProgram);        // Set up interwal checkPlants function call
-  timer.setInterval(reconnectTimer * 1000L, reconnectBlynk); // Set up interwal checkPlants function call
-  timer.setInterval(1000L,ifConnected);                       // Check for 1 sec if blynk is connected to internet
-  mainProgram();                                             // Call function at start
+  //timer.setInterval(measurementTime + 1 * 60000L, mainProgram);        // Set up interwal mainProgram [minutes]. Min value: 0.15 = 9 seconds
+
+  timer.setInterval( 0.5 * 60000L, temperatureMeasurement);  // Set up interval of temperatureMeasurement [minutes]. DS18B20 x5
+  //timer.setInterval( 1 + measurementTime * 60000L, moistureMeasurement);  // Set up interwal mosistureMeasurement [minutes]. Min value: 0.15 = 9 seconds
+  timer.setInterval( 5 * 1000L, reconnectBlynk); // Set up interwal reconnect function call [seconds]
+  timer.setInterval( 1 * 1000L, ifConnected);                       // Check for every 1 seconds if blynk is connected to internet
+  timer.setInterval( 1 * 60000L, isDayOrNight);                      // Check for every XX seconds if is day or night
+  timer.setInterval( 1 * 1000L, currentMeasurement);
+  timer.setInterval( 1 * 1000L, voltageMeasurement);
+
+  
+  //temperatureMeasurement();
+  //moistureMeasurement();
+
+  //mainProgram();                                             // Call function at start
 }
 //--------------------------------------------------------------------------------------------------------------------------
 void loop() // Main loop of the program
